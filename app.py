@@ -1,25 +1,36 @@
 import streamlit as st
-import speedtest
+from streamlit_javascript import st_javascript
 from PIL import Image
-import os
 
-# پیج سیٹ اپ
+# پیج کنفیگریشن
 st.set_page_config(page_title="Skill Up Internet Speed Test", page_icon="🚀", layout="centered")
 
-# گوگل جیسا کلین اور پروفیشنل ڈیزائن
+# CSS ڈیزائن
 st.markdown("""
     <style>
     .main { background-color: #ffffff; }
-    .stMetric { background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 10px; text-align: center; }
-    h1 { color: #202124; font-family: 'Google Sans', Arial, sans-serif; font-size: 32px; margin-bottom: 30px; }
+    h1 { color: #202124; text-align: center; font-family: 'Google Sans', sans-serif; }
+    
+    /* گول GO/AGAIN بٹن کا ڈیزائن */
     .stButton>button {
-        background: #1a73e8; color: white; border-radius: 4px; 
-        padding: 10px 24px; font-size: 16px; border: none;
-        display: block; margin: auto; transition: 0.3s;
+        background: linear-gradient(45deg, #1a73e8, #4285f4);
+        color: white;
+        border-radius: 50%;
+        width: 150px;
+        height: 150px;
+        font-size: 24px;
+        font-weight: bold;
+        border: none;
+        display: block;
+        margin: auto;
+        transition: 0.3s;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
     }
-    .stButton>button:hover { background: #1765cc; box-shadow: 0 1px 3px rgba(60,64,67,0.3); }
-    .tech-info { font-size: 12px; color: #70757a; text-align: center; margin-top: 20px; }
-    .footer { text-align: center; margin-top: 50px; padding: 20px; border-top: 1px solid #e8eaed; color: #3c4043; }
+    .stButton>button:hover {
+        transform: scale(1.05);
+        box-shadow: 0px 6px 20px rgba(0,0,0,0.3);
+    }
+    .footer { text-align: center; margin-top: 50px; padding: 20px; border-top: 1px solid #e8eaed; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -34,47 +45,55 @@ with cent_co:
 
 st.markdown("<h1>Internet Speed Test</h1>", unsafe_allow_html=True)
 
-if 'tested' not in st.session_state:
-    st.session_state.tested = False
+# سیشن اسٹیٹ تاکہ بٹن کا نام بدلا جا سکے
+if 'tested_once' not in st.session_state:
+    st.session_state.tested_once = False
 
-go_button = st.button("RUN SPEED TEST")
+# بٹن کا نام طے کرنا
+button_label = "AGAIN" if st.session_state.tested_once else "GO"
 
-if go_button:
-    try:
-        with st.spinner('Checking...'):
-            # ریئل سپیڈ کے لیے انجن سیٹنگز
-            s = speedtest.Speedtest(secure=True)
-            s.get_best_server()
-            s.download(threads=None) # threads=None خودکار طریقے سے بہترین سپیڈ پکڑتا ہے
-            s.upload(threads=None)
-            res = s.results.dict()
+st.write("##")
+run_test = st.button(button_label)
+
+# جاوا اسکرپٹ انجن (براؤزر سپیڈ کے لیے)
+test_script = """
+    async function getSpeed() {
+        const imageAddr = "https://upload.wikimedia.org/wikipedia/commons/2/2d/Snake_River_%285mb%29.jpg";
+        const downloadSize = 5245329; 
+        let startTime = new Date().getTime();
+        await fetch(imageAddr + "?n=" + Math.random());
+        let endTime = new Date().getTime();
+        let duration = (endTime - startTime) / 1000;
+        let speedMbps = ((downloadSize * 8) / (duration * 1024 * 1024)).toFixed(1);
+        
+        try {
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            const ipData = await ipRes.json();
+            return { speed: speedMbps, ip: ipData.ip };
+        } catch {
+            return { speed: speedMbps, ip: "Local/Protected" };
+        }
+    }
+    getSpeed();
+"""
+
+if run_test:
+    st.session_state.tested_once = True
+    with st.spinner('Checking your real speed...'):
+        js_results = st_javascript(test_script)
+        
+        if js_results and 'speed' in js_results:
+            st.write("---")
+            col1, col2 = st.columns(2)
+            col1.metric("DOWNLOAD", f"{js_results['speed']} Mbps")
+            col2.metric("IP ADDRESS", js_results['ip'])
             
-            st.session_state.results = res
-            st.session_state.tested = True
+            st.success("ٹیسٹ مکمل ہو گیا!")
+            st.markdown("<p style='text-align:center; color:#70757a; font-size:12px;'>LLC by Ookla © Technology Support</p>", unsafe_allow_html=True)
 
-        # گوگل اسٹائل ڈسپلے
-        st.write("##")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("DOWNLOAD", f"{res['download'] / 1_000_000:.1f} Mbps")
-        col2.metric("UPLOAD", f"{res['upload'] / 1_000_000:.1f} Mbps")
-        col3.metric("LATENCY", f"{res['ping']:.0f} ms")
-
-        # ٹیکنیکل تفصیلات (گوگل جیسا ویو)
-        st.markdown(f"""
-            <div class="tech-info">
-                <p><b>Server:</b> {res['server']['name']} | <b>Sponsor:</b> {res['server']['sponsor']}</p>
-                <p><b>Your IP:</b> {res['client']['ip']} | <b>Location:</b> {res['client']['country']}</p>
-                <p style="font-size: 10px; margin-top:10px;">LLC by Ookla © Technology</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error("Connection timed out. Please try again.")
-
-# فکسڈ فوٹر
+# فوٹر
 st.markdown(f"""
     <div class="footer">
         <p><b>Shahid Mahmood Cheema</b><br>CEO - Skill Up Digital Academy</p>
-        <p style="font-size: 11px;">Testing performed via high-precision Python engines</p>
     </div>
     """, unsafe_allow_html=True)

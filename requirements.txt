@@ -1,3 +1,2 @@
 streamlit
-speedtest-cli
-pillow
+streamlit-javascript
