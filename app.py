@@ -2,79 +2,87 @@ import streamlit as st
 from streamlit_javascript import st_javascript
 from PIL import Image
 
-# پیج سیٹ اپ
+# پیج کنفیگریشن
 st.set_page_config(page_title="Skill Up Speed Test", page_icon="🚀", layout="centered")
 
-# ڈیزائن (CSS)
+# سپیڈو میٹر اور بٹن کا ڈیزائن (CSS)
 st.markdown("""
     <style>
     .main { background-color: #ffffff; }
     .stButton>button {
-        background: #1a73e8; color: white; border-radius: 50%; 
-        width: 120px; height: 120px; font-size: 24px; font-weight: bold;
-        display: block; margin: auto; border: none; transition: 0.3s;
+        background: linear-gradient(45deg, #1a73e8, #4285f4);
+        color: white; border-radius: 50%; width: 130px; height: 130px;
+        font-size: 24px; font-weight: bold; border: none; display: block; margin: auto;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.2); transition: 0.3s;
     }
-    .gauge-box {
-        text-align: center; margin: 20px auto; width: 260px; height: 130px;
-        border: 10px solid #f3f3f3; border-top: 10px solid #1a73e8;
-        border-radius: 200px 200px 0 0; position: relative;
+    .stButton>button:hover { transform: scale(1.05); }
+    
+    /* سپیڈو میٹر گرافک */
+    .gauge-container {
+        width: 280px; height: 140px; border: 12px solid #f1f3f4;
+        border-top: 12px solid #34a853; border-radius: 280px 280px 0 0;
+        margin: 20px auto; position: relative; text-align: center;
     }
-    .speed-display { font-size: 45px; font-weight: bold; color: #202124; margin-top: 10px; }
-    .footer { text-align: center; margin-top: 40px; border-top: 1px solid #eee; padding: 20px; }
+    .speed-val { font-size: 48px; font-weight: bold; color: #202124; margin-top: 25px; }
+    .footer { text-align: center; margin-top: 50px; border-top: 1px solid #eee; padding: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
 # لوگو
 try:
     img = Image.open("logo.jpg")
-    st.image(img, width=150)
+    st.image(img, width=160)
 except:
     pass
 
 st.markdown("<h1 style='text-align:center;'>Skill Up Speed Test</h1>", unsafe_allow_html=True)
 
-if 'label' not in st.session_state:
-    st.session_state.label = "GO"
+# بٹن کا نام بدلنا
+if 'btn_txt' not in st.session_state:
+    st.session_state.btn_txt = "GO"
 
-# ٹیسٹ بٹن
-run_test = st.button(st.session_state.label)
+st.write("##")
+run_btn = st.button(st.session_state.btn_txt)
 
-# جاوا اسکرپٹ اسکرپٹ (اصلی سپیڈ کے لیے)
-js_speed_test = """
-    async function measure() {
+# سپیڈ ٹیسٹ لاجک (براؤزر بیسڈ)
+js_code = """
+    async function test() {
         const start = Date.now();
-        // 5MB کی امیج ڈاؤن لوڈ کرنا ریئل سپیڈ کے لیے
-        const res = await fetch('https://upload.wikimedia.org/wikipedia/commons/2/2d/Snake_River_%285mb%29.jpg?cache=' + Math.random());
+        const res = await fetch('https://upload.wikimedia.org/wikipedia/commons/2/2d/Snake_River_%285mb%29.jpg?n=' + Math.random());
         const blob = await res.blob();
         const end = Date.now();
         const duration = (end - start) / 1000;
         const mbps = ((blob.size * 8) / (duration * 1024 * 1024)).toFixed(2);
         
-        // لوکیشن اور آئی پی
-        const ipRes = await fetch('https://ipapi.co/json/');
-        const ipData = await ipRes.json();
+        const ipFetch = await fetch('https://ipapi.co/json/');
+        const ipData = await ipFetch.json();
         
-        return { speed: mbps, ip: ipData.ip, city: ipData.city, isp: ipData.org };
+        return { speed: mbps, ip: ipData.ip, isp: ipData.org };
     }
-    measure();
+    test();
 """
 
-if run_test:
-    st.session_state.label = "AGAIN"
-    with st.spinner('Checking real speed...'):
-        result = st_javascript(js_speed_test)
+if run_btn:
+    st.session_state.btn_txt = "AGAIN"
+    with st.spinner('ڈیٹا اکٹھا کیا جا رہا ہے...'):
+        result = st_javascript(js_code)
         
         if result and 'speed' in result:
-            st.markdown(f'<div class="gauge-box"></div><div class="speed-display" style="text-align:center;">{result["speed"]} <span style="font-size:20px;">Mbps</span></div>', unsafe_allow_html=True)
+            # سپیڈو میٹر ڈسپلے
+            st.markdown(f"""
+                <div class="gauge-container">
+                    <div class="speed-val">{result['speed']}</div>
+                    <div style="color:gray;">Mbps</div>
+                </div>
+            """, unsafe_allow_html=True)
             
             st.write("---")
-            c1, c2 = st.columns(2)
-            c1.metric("YOUR IP", result['ip'])
-            c1.metric("LOCATION", result['city'])
-            c2.metric("ISP / SERVER", result['isp'])
-            c2.metric("STATUS", "Stable")
+            col1, col2 = st.columns(2)
+            col1.metric("Download", f"{result['speed']} Mbps")
+            col2.metric("Your IP", result['ip'])
             
-            st.success("ٹیسٹ مکمل ہو گیا! یہ آپ کے براؤزر کی اصل سپیڈ ہے۔")
+            st.info(f"**ISP:** {result['isp']}")
+            st.success("ٹیسٹ مکمل ہو گیا!")
 
 # فوٹر
 st.markdown(f"""
