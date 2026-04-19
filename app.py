@@ -1,97 +1,78 @@
 import streamlit as st
-from streamlit_javascript import st_javascript
+import streamlit.components.v1 as components
 from PIL import Image
 
-# پیج کنفیگریشن
-st.set_page_config(page_title="Skill Up Speed Test", page_icon="🚀", layout="centered")
+st.set_page_config(page_title="Skill Up Speed Test", layout="centered")
 
-# سپیڈو میٹر اور ڈیزائن (CSS)
-st.markdown("""
-    <style>
-    .main { background-color: #ffffff; }
-    .stButton>button {
-        background: #1a73e8; color: white; border-radius: 50%; 
-        width: 130px; height: 130px; font-size: 26px; font-weight: bold;
-        display: block; margin: auto; border: none; transition: 0.3s;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
-    }
-    .stButton>button:hover { transform: scale(1.05); background: #1765cc; }
-    
-    /* سپیڈو میٹر اسٹائل */
-    .gauge-container {
-        width: 300px; height: 150px; border: 12px solid #f1f3f4;
-        border-top: 12px solid #34a853; border-radius: 300px 300px 0 0;
-        margin: 30px auto; position: relative; text-align: center;
-    }
-    .speed-val { font-size: 50px; font-weight: bold; color: #202124; margin-top: 30px; }
-    .footer { text-align: center; margin-top: 50px; border-top: 1px solid #eee; padding: 20px; color: #5f6368; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# لوگو
+# لوگو اور ٹائٹل
 try:
     img = Image.open("logo.jpg")
-    st.image(img, width=160)
+    st.image(img, width=150)
 except:
     pass
-
 st.markdown("<h1 style='text-align:center;'>Skill Up Speed Test</h1>", unsafe_allow_html=True)
 
-# بٹن کی لاجک (GO / AGAIN)
-if 'btn_state' not in st.session_state:
-    st.session_state.btn_state = "GO"
+# یہ وہ جادوئی کوڈ ہے جو براہ راست آپ کے براؤزر میں چلے گا
+speed_test_html = """
+<div id="main" style="text-align:center; font-family:sans-serif; padding:20px; border:2px solid #eee; border-radius:15px;">
+    <button id="btn" onclick="startTest()" style="background:#1a73e8; color:white; border:none; border-radius:50%; width:120px; height:120px; font-size:24px; cursor:pointer; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.2);">GO</button>
+    
+    <div id="results" style="display:none; margin-top:20px;">
+        <div style="font-size:50px; font-weight:bold; color:#1a73e8;"><span id="speed">0</span> <small style="font-size:20px; color:#555;">Mbps</small></div>
+        <p style="color:#666;">آپ کے کمپیوٹر کی اصل سپیڈ</p>
+        <hr style="border:0; border-top:1px solid #eee;">
+        <div style="display:flex; justify-content:space-around; font-size:18px;">
+            <div><strong>Ping:</strong> <span id="ping">0</span> ms</div>
+            <div><strong>IP:</strong> <span id="ip">Checking...</span></div>
+        </div>
+    </div>
+</div>
 
-st.write("##")
-run_test = st.button(st.session_state.btn_state)
+<script>
+async function startTest() {
+    const btn = document.getElementById('btn');
+    const results = document.getElementById('results');
+    const speedEl = document.getElementById('speed');
+    const pingEl = document.getElementById('ping');
+    const ipEl = document.getElementById('ip');
 
-# جاوا اسکرپٹ: یہ آپ کے موبائل/کمپیوٹر کے براؤزر سے براہ راست ٹیسٹ کرے گا
-js_speed_logic = """
-    async function getUserInternetSpeed() {
+    btn.innerText = "WAIT...";
+    btn.disabled = true;
+
+    try {
+        // Ping ٹیسٹ
+        const pStart = Date.now();
+        await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' });
+        pingEl.innerText = Date.now() - pStart;
+
+        // IP معلوم کرنا
+        const ipRes = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipRes.json();
+        ipEl.innerText = ipData.ip;
+
+        // اصل سپیڈ ٹیسٹ (آپ کے براؤزر سے فائل ڈاؤن لوڈ کرنا)
         const start = Date.now();
-        // براؤزر کے ذریعے فائل ڈاؤن لوڈ کرنا تاکہ آپ کے انٹرنیٹ کی سپیڈ معلوم ہو سکے
         const response = await fetch('https://upload.wikimedia.org/wikipedia/commons/2/2d/Snake_River_%285mb%29.jpg?nocache=' + Math.random());
         const blob = await response.blob();
         const end = Date.now();
         
         const duration = (end - start) / 1000;
-        const bitsLoaded = blob.size * 8;
-        const speedMbps = (bitsLoaded / (duration * 1024 * 1024)).toFixed(2);
-        
-        // آپ کی آئی پی اور لوکل سرور کی معلومات
-        const ipRes = await fetch('https://ipapi.co/json/');
-        const ipData = await ipRes.json();
-        
-        return { speed: speedMbps, ip: ipData.ip, provider: ipData.org, city: ipData.city };
+        const mbps = ((blob.size * 8) / (duration * 1024 * 1024)).toFixed(1);
+
+        speedEl.innerText = mbps;
+        results.style.display = "block";
+        btn.innerText = "AGAIN";
+        btn.disabled = false;
+    } catch (e) {
+        alert("ٹیسٹ کے دوران مسئلہ آیا، دوبارہ کوشش کریں۔");
+        btn.innerText = "GO";
+        btn.disabled = false;
     }
-    getUserInternetSpeed();
+}
+</script>
 """
 
-if run_test:
-    st.session_state.btn_state = "AGAIN"
-    with st.spinner('آپ کے موبائل/کمپیوٹر کی سپیڈ چیک کی جا رہی ہے...'):
-        # جاوا اسکرپٹ رزلٹ حاصل کرنا
-        res = st_javascript(js_speed_logic)
-        
-        if res and 'speed' in res:
-            # سپیڈو میٹر شو کرنا
-            st.markdown(f"""
-                <div class="gauge-container">
-                    <div class="speed-val">{res['speed']}</div>
-                    <div style="color:gray; font-size:18px;">Mbps</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            st.write("---")
-            col1, col2 = st.columns(2)
-            col1.metric("اصلی ڈاؤن لوڈ سپیڈ", f"{res['speed']} Mbps")
-            col2.metric("آپ کی آئی پی (IP)", res['ip'])
-            
-            st.info(f"**ISP:** {res['provider']} | **Location:** {res['city']}")
-            st.success("ٹیسٹ مکمل ہو گیا! یہ آپ کے اپنے انٹرنیٹ کنکشن کی سپیڈ ہے۔")
+# HTML کو اسٹریم لٹ میں دکھانا
+components.html(speed_test_html, height=400)
 
-# فوٹر
-st.markdown(f"""
-    <div class="footer">
-        <p><b>Shahid Mahmood Cheema</b><br>CEO - Skill Up Digital Academy</p>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; margin-top:30px; color:#888;'>Shahid Mahmood Cheema<br>CEO - Skill Up Digital Academy</div>", unsafe_allow_html=True)
